@@ -24,17 +24,17 @@ export const myFriendRouter = router({
         /**
          * Question 4: Implement mutual friend count
          *
-         * Add `mutualFriendCount` to the returned result of this query. You can
+         * Add mutualFriendCount to the returned result of this query. You can
          * either:
          *  (1) Make a separate query to count the number of mutual friends,
          *  then combine the result with the result of this query
          *  (2) BONUS: Use a subquery (hint: take a look at how
-         *  `totalFriendCount` is implemented)
+         *  totalFriendCount is implemented)
          *
          * Instructions:
          *  - Go to src/server/tests/friendship-request.test.ts, enable the test
          * scenario for Question 3
-         *  - Run `yarn test` to verify your answer
+         *  - Run yarn test to verify your answer
          *
          * Documentation references:
          *  - https://kysely-org.github.io/kysely/classes/SelectQueryBuilder.html#innerJoin
@@ -59,6 +59,29 @@ export const myFriendRouter = router({
             'friends.fullName',
             'friends.phoneNumber',
             'totalFriendCount',
+            conn
+              .selectFrom('friendships as f1')
+              .innerJoin(
+                'friendships as f2',
+                'f1.friendUserId',
+                'f2.friendUserId'
+              )
+              .where('f1.userId', '=', ctx.session.userId)
+              .where('f2.userId', '=', input.friendUserId)
+              .where(
+                'f1.status',
+                '=',
+                FriendshipStatusSchema.Values['accepted']
+              )
+              .where(
+                'f2.status',
+                '=',
+                FriendshipStatusSchema.Values['accepted']
+              )
+              .select((eb) =>
+                eb.fn.count(eb.ref('f1.friendUserId')).as('mutualFriendCount')
+              )
+              .as('mutualFriendCount'), // so ban chung
           ])
           .executeTakeFirstOrThrow(() => new TRPCError({ code: 'NOT_FOUND' }))
           .then(
